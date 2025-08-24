@@ -10,9 +10,13 @@ interface LayoutProps {
 }
 
 export default function Layout({ children, title = "STEAL YOUR STATS", onClose }: LayoutProps) {
-  const [currentTime, setCurrentTime] = React.useState(DateTime.now());
+  const [currentTime, setCurrentTime] = React.useState<DateTime | null>(null);
+  const [isClient, setIsClient] = React.useState(false);
 
   React.useEffect(() => {
+    setIsClient(true);
+    setCurrentTime(DateTime.now());
+    
     const timer = setInterval(() => {
       setCurrentTime(DateTime.now());
     }, 1000);
@@ -57,10 +61,12 @@ export default function Layout({ children, title = "STEAL YOUR STATS", onClose }
         </div>
       </div>
 
-      {/* Time Display - Brutalist Style */}
-      <div className="fixed top-20 right-8 text-black text-sm font-mono bg-white px-3 py-2 border-[3px] border-black">
-        {currentTime.toFormat('h:mm A')}
-      </div>
+      {/* Time Display - Brutalist Style - Only render on client */}
+      {isClient && currentTime && (
+        <div className="fixed top-20 right-8 text-black text-sm font-mono bg-white px-3 py-2 border-[3px] border-black">
+          {currentTime.toFormat('h:mm A')}
+        </div>
+      )}
     </div>
   );
 }
