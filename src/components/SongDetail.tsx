@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Song, SongDetail as SongDetailType, Show } from '@/types';
+import { Song, SongDetail as SongDetailType, Show, TestIndexShow } from '@/types';
 import AudioPlayer from './AudioPlayer';
 
 interface SongDetailProps {
@@ -14,6 +14,7 @@ export default function SongDetail({ song, onBack, onShowSelect }: SongDetailPro
   const [songDetail, setSongDetail] = useState<SongDetailType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedShow, setSelectedShow] = useState<TestIndexShow | null>(null);
 
   useEffect(() => {
     const fetchSongDetail = async () => {
@@ -32,6 +33,11 @@ export default function SongDetail({ song, onBack, onShowSelect }: SongDetailPro
         
         const data = await response.json();
         setSongDetail(data);
+        
+        // Auto-select the first show if available
+        if (data.shows && data.shows.length > 0) {
+          setSelectedShow(data.shows[0] as TestIndexShow);
+        }
       } catch (err) {
         console.error('Error fetching song details:', err);
         setError(err instanceof Error ? err.message : 'Failed to load song details');
@@ -42,6 +48,10 @@ export default function SongDetail({ song, onBack, onShowSelect }: SongDetailPro
 
     fetchSongDetail();
   }, [song.slug]);
+
+  const handleShowSelect = (show: TestIndexShow) => {
+    setSelectedShow(show);
+  };
 
   const getEraLabel = (year: string) => {
     const yearNum = parseInt(year);
@@ -359,13 +369,57 @@ export default function SongDetail({ song, onBack, onShowSelect }: SongDetailPro
         </div>
       )}
 
+      {/* Show Selector for Audio Player */}
+      {songDetail.shows && songDetail.shows.length > 1 && selectedShow && (
+        <div className="status-card">
+          <div className="status-card-header">🎵 SELECT SHOW TO EXPLORE ({songDetail.shows.length} AVAILABLE)</div>
+          <div className="panel-content">
+            <div className="space-y-2 max-h-60 overflow-y-auto">
+              {songDetail.shows.map((show, index) => (
+                <button
+                  key={show.id}
+                  onClick={() => handleShowSelect(show as TestIndexShow)}
+                  className={`w-full p-3 text-left border-2 transition-colors ${
+                    selectedShow.id === show.id 
+                      ? 'border-black bg-black text-white' 
+                      : 'border-gray-300 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm">
+                        {formatDate(show.date)}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {show.venue?.name || 'Unknown Venue'}
+                        {show.venue?.city && `, ${show.venue.city}`}
+                        {(show as any).year && ` • ${(show as any).year}`}
+                        {(show as any).era && ` • ${(show as any).era}`}
+                      </div>
+                    </div>
+                    {selectedShow.id === show.id && (
+                      <div className="text-lg">✓</div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="text-xs text-center mt-2 text-gray-600">
+              Currently selected: {formatDate(selectedShow.date)} at {selectedShow.venue?.name || 'Unknown Venue'}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Audio Player */}
-      <AudioPlayer
-        trackName={song.title}
-        duration={songDetail.longest?.durationMs}
-        showDate={songDetail.shows[0]?.date}
-        archiveIdentifier={songDetail.shows[0]?.id}
-      />
+      {selectedShow && (
+        <AudioPlayer
+          trackName={song.title}
+          duration={songDetail.longest?.durationMs}
+          showDate={selectedShow.date}
+          archiveIdentifier={selectedShow.id}
+        />
+      )}
     </div>
   );
 }

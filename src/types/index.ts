@@ -21,6 +21,20 @@ export interface Show {
   sourceCount: number;
 }
 
+// Test index show structure (different from main Show type)
+export interface TestIndexShow {
+  id: string;
+  date: string;
+  venue: {
+    id: string;
+    name: string;
+    city?: string;
+    country?: string;
+  };
+  year: number;
+  era: string;
+}
+
 export interface Song {
   id: string;
   artistId: string;

@@ -57,6 +57,7 @@ export default function AudioPlayer({
   const [showTrackSelector, setShowTrackSelector] = useState(false);
   const [showAllTracks, setShowAllTracks] = useState(false);
   const [allShowTracks, setAllShowTracks] = useState<AudioTrack[]>([]);
+  const [preferredFormat, setPreferredFormat] = useState<'MP3' | 'FLAC'>('MP3');
   const audioRef = useRef<HTMLAudioElement>(null);
   const hasAttemptedLoadRef = useRef(false);
 
@@ -192,11 +193,52 @@ export default function AudioPlayer({
     setShowTrackSelector(false);
   }, []);
 
+  const handleTrackDoubleClick = useCallback((track: AudioTrack) => {
+    setSelectedTrack(track);
+    setAudioUrl(track.url);
+    setShowTrackSelector(false);
+    
+    // Auto-play the track after a short delay to ensure audio is loaded
+    setTimeout(() => {
+      const audio = audioRef.current;
+      if (audio) {
+        audio.play().then(() => {
+          setIsPlaying(true);
+        }).catch((error) => {
+          console.error('Failed to auto-play track:', error);
+        });
+      }
+    }, 100);
+  }, []);
+
   const formatDuration = (seconds?: number) => {
     if (!seconds) return 'Unknown';
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Filter tracks by format and deduplicate by song name
+  const getFilteredTracks = (tracks: AudioTrack[], format: 'MP3' | 'FLAC') => {
+    const filtered = tracks.filter(track => 
+      track.format.toUpperCase().includes(format)
+    );
+    
+    // Deduplicate by song name, preferring the selected format
+    const uniqueTracks = new Map<string, AudioTrack>();
+    
+    filtered.forEach(track => {
+      const songName = track.title || track.name;
+      if (!uniqueTracks.has(songName) || track.format.toUpperCase().includes(format)) {
+        uniqueTracks.set(songName, track);
+      }
+    });
+    
+    return Array.from(uniqueTracks.values());
+  };
+
+  const toggleFormat = () => {
+    setPreferredFormat(prev => prev === 'MP3' ? 'FLAC' : 'MP3');
   };
 
   const formatFileSize = (bytes: number) => {
@@ -275,6 +317,28 @@ export default function AudioPlayer({
         />
       )}
 
+      {/* Track Info Display */}
+      {selectedTrack ? (
+        <div className="mb-4 p-3 border-2 border-black bg-gray-50 text-center">
+          <div className="text-lg font-bold mb-2">
+            🎵 {selectedTrack.title || selectedTrack.name}
+          </div>
+          <div className="text-sm text-gray-600">
+            {selectedTrack.format.toUpperCase()} • {formatDuration(selectedTrack.duration)} • {formatFileSize(selectedTrack.size)}
+            {selectedTrack.trackNumber && ` • Track ${selectedTrack.trackNumber}`}
+          </div>
+        </div>
+      ) : (
+        <div className="mb-4 p-3 border-2 border-black bg-yellow-50 text-center">
+          <div className="text-sm font-bold">
+            🎵 NO TRACK SELECTED
+          </div>
+          <div className="text-xs text-gray-600 mt-1">
+            Select a track from the list below to start playing
+          </div>
+        </div>
+      )}
+
       {/* Playback Controls */}
       <div className="audio-controls">
         <button
@@ -303,12 +367,12 @@ export default function AudioPlayer({
       <div className="mb-4">
         <div className="flex justify-between text-sm mb-2">
           <span>{formatDuration(currentTime)}</span>
-          <span>{duration ? formatDuration(duration / 1000) : '--:--'}</span>
+          <span>{selectedTrack?.duration ? formatDuration(selectedTrack.duration) : '--:--'}</span>
         </div>
         <div className="progress-bar">
           <div 
             className="progress-fill"
-            style={{ width: `${duration ? (currentTime / (duration / 1000)) * 100 : 0}%` }}
+            style={{ width: `${selectedTrack?.duration ? (currentTime / selectedTrack.duration) * 100 : 0}%` }}
           ></div>
         </div>
       </div>
@@ -397,7 +461,7 @@ export default function AudioPlayer({
               onClick={() => setShowTrackSelector(!showTrackSelector)}
               className="mt-2 px-3 py-1 text-xs border-2 border-black bg-white hover:bg-black hover:text-white transition-colors"
             >
-              {showTrackSelector ? 'HIDE' : 'SHOW'} TRACK SELECTOR ({availableTracks.length} TRACKS)
+              {showTrackSelector ? 'HIDE' : 'SHOW'} TRACK SELECTOR ({getFilteredTracks(availableTracks, preferredFormat).length} TRACKS)
             </button>
           )}
           {allShowTracks.length > 0 && (
@@ -405,7 +469,7 @@ export default function AudioPlayer({
               onClick={() => setShowAllTracks(!showAllTracks)}
               className="mt-2 ml-2 px-3 py-1 text-xs border-2 border-black bg-white hover:bg-black hover:text-white transition-colors"
             >
-              {showAllTracks ? 'HIDE' : 'SHOW'} ALL SHOW TRACKS ({allShowTracks.length} TOTAL)
+              {showAllTracks ? 'HIDE' : 'SHOW'} ALL SHOW TRACKS ({getFilteredTracks(allShowTracks, preferredFormat).filter(track => track.trackNumber).length} AVAILABLE)
             </button>
           )}
         </div>
@@ -415,13 +479,28 @@ export default function AudioPlayer({
       {showTrackSelector && availableTracks.length > 1 && (
         <div className="mt-4 p-4 border-2 border-black bg-yellow-50">
           <div className="text-sm font-bold mb-3 text-center">
-            🎵 SELECT AUDIO TRACK ({availableTracks.length} AVAILABLE)
+            🎵 SELECT AUDIO TRACK ({getFilteredTracks(availableTracks, preferredFormat).length} AVAILABLE)
+          </div>
+          
+          {/* Format Toggle */}
+          <div className="flex justify-center mb-3">
+            <button
+              onClick={toggleFormat}
+              className="px-4 py-2 border-2 border-black bg-white hover:bg-black hover:text-white transition-colors text-sm font-bold"
+            >
+              🔄 SWITCH TO {preferredFormat === 'MP3' ? 'FLAC' : 'MP3'}
+            </button>
+          </div>
+          
+          <div className="text-xs text-center mb-3 text-gray-600">
+            Currently showing: {preferredFormat} format
           </div>
           <div className="space-y-2 max-h-40 overflow-y-auto">
-            {availableTracks.map((track, index) => (
+            {getFilteredTracks(availableTracks, preferredFormat).map((track, index) => (
               <button
                 key={index}
                 onClick={() => handleTrackSelect(track)}
+                onDoubleClick={() => handleTrackDoubleClick(track)}
                 className={`w-full p-2 text-left border-2 transition-colors ${
                   selectedTrack === track 
                     ? 'border-black bg-black text-white' 
@@ -448,6 +527,9 @@ export default function AudioPlayer({
           <div className="text-xs text-center mt-2 text-gray-600">
             Currently playing: {selectedTrack?.title || selectedTrack?.name}
           </div>
+          <div className="text-xs text-center mt-1 text-blue-600">
+            💡 Double-click any track to play it directly
+          </div>
         </div>
       )}
 
@@ -455,19 +537,35 @@ export default function AudioPlayer({
       {showAllTracks && allShowTracks.length > 0 && (
         <div className="mt-4 p-4 border-2 border-black bg-blue-50">
           <div className="text-sm font-bold mb-3 text-center">
-            🎵 ALL SHOW TRACKS ({allShowTracks.length} TOTAL)
+            🎵 ALL SHOW TRACKS ({getFilteredTracks(allShowTracks, preferredFormat).filter(track => track.trackNumber).length} AVAILABLE)
           </div>
           <div className="text-xs text-center mb-3 text-gray-600">
             Browse all available tracks from this show
           </div>
+          
+          {/* Format Toggle for All Show Tracks */}
+          <div className="flex justify-center mb-3">
+            <button
+              onClick={toggleFormat}
+              className="px-4 py-2 border-2 border-black bg-white hover:bg-black hover:text-white transition-colors text-sm font-bold"
+            >
+              🔄 SWITCH TO {preferredFormat === 'MP3' ? 'FLAC' : 'MP3'}
+            </button>
+          </div>
+          
+          <div className="text-xs text-center mb-3 text-gray-600">
+            Currently showing: {preferredFormat} format
+          </div>
+          
           <div className="space-y-2 max-h-60 overflow-y-auto">
-            {allShowTracks
+            {getFilteredTracks(allShowTracks, preferredFormat)
               .filter(track => track.trackNumber) // Only show numbered tracks
               .sort((a, b) => (a.trackNumber || 0) - (b.trackNumber || 0)) // Sort by track number
               .map((track, index) => (
                 <button
                   key={index}
                   onClick={() => handleTrackSelect(track)}
+                  onDoubleClick={() => handleTrackDoubleClick(track)}
                   className={`w-full p-2 text-left border-2 transition-colors ${
                     selectedTrack === track 
                       ? 'border-black bg-black text-white' 
@@ -492,6 +590,9 @@ export default function AudioPlayer({
           </div>
           <div className="text-xs text-center mt-2 text-gray-600">
             Click any track to play it
+          </div>
+          <div className="text-xs text-center mt-1 text-blue-600">
+            💡 Double-click any track to play it directly
           </div>
         </div>
       )}
@@ -520,8 +621,6 @@ export default function AudioPlayer({
           </div>
         </div>
       )}
-
-
 
       {/* Status Display */}
       <div className="mt-4 p-2 border-2 border-black text-center">

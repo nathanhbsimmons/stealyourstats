@@ -134,7 +134,8 @@
       "title": "Scarlet Begonias",
       "slug": "scarlet-begonias",
       "altTitles": [
-        "Scarlet Begonias"
+        "Scarlet Begonias",
+        "Scarlet Begonias ->"
       ],
       "shows": [
         {
@@ -148,9 +149,57 @@
           },
           "year": 1977,
           "era": "Return + '77 Era"
+        },
+        {
+          "id": "gd1978-07-08.137571.mtx-2aud.dusborne.flac24",
+          "date": "08-07-1978",
+          "venue": {
+            "id": "red-rocks",
+            "name": "Red Rocks Amphitheatre",
+            "city": "Morrison",
+            "country": "United States"
+          },
+          "year": 1978,
+          "era": "Return + '77 Era"
+        },
+        {
+          "id": "gd1980-06-20.137571.mtx-2aud.dusborne.flac24",
+          "date": "20-06-1980",
+          "venue": {
+            "id": "capitol-theatre",
+            "name": "Capitol Theatre",
+            "city": "Passaic",
+            "country": "United States"
+          },
+          "year": 1980,
+          "era": "Brent Early Era"
+        },
+        {
+          "id": "gd1985-06-15.137571.mtx-2aud.dusborne.flac24",
+          "date": "15-06-1985",
+          "venue": {
+            "id": "riverbend",
+            "name": "Riverbend Music Center",
+            "city": "Cincinnati",
+            "country": "United States"
+          },
+          "year": 1985,
+          "era": "Brent Early Era"
+        },
+        {
+          "id": "gd1990-09-20.137571.mtx-2aud.dusborne.flac24",
+          "date": "20-09-1990",
+          "venue": {
+            "id": "madison-square-garden",
+            "name": "Madison Square Garden",
+            "city": "New York",
+            "country": "United States"
+          },
+          "year": 1990,
+          "era": "Brent Late Era"
         }
       ],
-      "totalPerformances": 1,
+      "totalPerformances": 5,
       "firstPerformance": {
         "id": "gd1977-05-08.137571.mtx-2aud.dusborne.flac24",
         "date": "08-05-1977",
@@ -164,16 +213,16 @@
         "era": "Return + '77 Era"
       },
       "lastPerformance": {
-        "id": "gd1977-05-08.137571.mtx-2aud.dusborne.flac24",
-        "date": "08-05-1977",
+        "id": "gd1990-09-20.137571.mtx-2aud.dusborne.flac24",
+        "date": "20-09-1990",
         "venue": {
-          "id": "barton-hall",
-          "name": "Barton Hall, Cornell University",
-          "city": "Ithaca",
+          "id": "madison-square-garden",
+          "name": "Madison Square Garden",
+          "city": "New York",
           "country": "United States"
         },
-        "year": 1977,
-        "era": "Return + '77 Era"
+        "year": 1990,
+        "era": "Brent Late Era"
       }
     },
     {
