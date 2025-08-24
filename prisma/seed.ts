@@ -20,33 +20,48 @@ async function main() {
   // Create sample venues
   const venues = await Promise.all([
     prisma.venue.upsert({
-      where: { name: 'Fillmore West' },
+      where: {
+        name_city: {
+          name: "Fillmore West",
+          city: "San Francisco"
+        }
+      },
       update: {},
       create: {
-        name: 'Fillmore West',
-        city: 'San Francisco',
-        state: 'CA',
-        country: 'USA'
+        name: "Fillmore West",
+        city: "San Francisco",
+        state: "CA",
+        country: "USA"
       }
     }),
     prisma.venue.upsert({
-      where: { name: 'Winterland Arena' },
+      where: {
+        name_city: {
+          name: "Winterland Arena",
+          city: "San Francisco"
+        }
+      },
       update: {},
       create: {
-        name: 'Winterland Arena',
-        city: 'San Francisco',
-        state: 'CA',
-        country: 'USA'
+        name: "Winterland Arena",
+        city: "San Francisco",
+        state: "CA",
+        country: "USA"
       }
     }),
     prisma.venue.upsert({
-      where: { name: 'Madison Square Garden' },
+      where: {
+        name_city: {
+          name: "Madison Square Garden",
+          city: "New York"
+        }
+      },
       update: {},
       create: {
-        name: 'Madison Square Garden',
-        city: 'New York',
-        state: 'NY',
-        country: 'USA'
+        name: "Madison Square Garden",
+        city: "New York",
+        state: "NY",
+        country: "USA"
       }
     })
   ])
@@ -56,53 +71,57 @@ async function main() {
   // Create sample songs
   const songs = await Promise.all([
     prisma.song.upsert({
-      where: { slug: 'scarlet-begonias' },
+      where: {
+        artistId_slug: {
+          artistId: artist.id,
+          slug: "scarlet-begonias"
+        }
+      },
       update: {},
       create: {
         artistId: artist.id,
-        title: 'Scarlet Begonias',
-        altTitles: ['Scarlet Begonias', 'Scarlet'],
-        slug: 'scarlet-begonias'
+        title: "Scarlet Begonias",
+        altTitles: [
+          "Scarlet Begonias",
+          "Scarlet"
+        ],
+        slug: "scarlet-begonias"
       }
     }),
     prisma.song.upsert({
-      where: { slug: 'fire-on-the-mountain' },
+      where: {
+        artistId_slug: {
+          artistId: artist.id,
+          slug: "fire-on-the-mountain"
+        }
+      },
       update: {},
       create: {
         artistId: artist.id,
-        title: 'Fire on the Mountain',
-        altTitles: ['Fire on the Mountain', 'Fire'],
-        slug: 'fire-on-the-mountain'
+        title: "Fire on the Mountain",
+        altTitles: [
+          "Fire on the Mountain",
+          "Fire"
+        ],
+        slug: "fire-on-the-mountain"
       }
     }),
     prisma.song.upsert({
-      where: { slug: 'dark-star' },
+      where: {
+        artistId_slug: {
+          artistId: artist.id,
+          slug: "truckin"
+        }
+      },
       update: {},
       create: {
         artistId: artist.id,
-        title: 'Dark Star',
-        altTitles: ['Dark Star'],
-        slug: 'dark-star'
-      }
-    }),
-    prisma.song.upsert({
-      where: { slug: 'truckin' },
-      update: {},
-      create: {
-        artistId: artist.id,
-        title: 'Truckin\'',
-        altTitles: ['Truckin\'', 'Truckin'],
-        slug: 'truckin'
-      }
-    }),
-    prisma.song.upsert({
-      where: { slug: 'casey-jones' },
-      update: {},
-      create: {
-        artistId: artist.id,
-        title: 'Casey Jones',
-        altTitles: ['Casey Jones'],
-        slug: 'casey-jones'
+        title: "Truckin'",
+        altTitles: [
+          "Truckin'",
+          "Truckin"
+        ],
+        slug: "truckin"
       }
     })
   ])
