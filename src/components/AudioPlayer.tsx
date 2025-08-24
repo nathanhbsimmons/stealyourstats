@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { bpmEstimator, BpmEstimationResult } from '@/lib/bpm-estimator';
 
 interface AudioPlayerProps {
@@ -10,6 +10,19 @@ interface AudioPlayerProps {
   recordingId?: string;
   existingBpm?: number;
   existingBpmConfidence?: number;
+  showDate?: string;
+  showId?: string;
+  archiveIdentifier?: string; // Add this for Archive.org identifier
+}
+
+interface AudioTrack {
+  name: string;
+  url: string;
+  size: number;
+  format: string;
+  duration?: number;
+  trackNumber?: number;
+  title?: string;
 }
 
 export default function AudioPlayer({ 
@@ -18,7 +31,10 @@ export default function AudioPlayer({
   performanceId, 
   recordingId,
   existingBpm,
-  existingBpmConfidence
+  existingBpmConfidence,
+  showDate,
+  showId,
+  archiveIdentifier
 }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -32,10 +48,17 @@ export default function AudioPlayer({
     } : null
   );
   const [bpmError, setBpmError] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState<any>(null);
+  const [availableTracks, setAvailableTracks] = useState<AudioTrack[]>([]);
+  const [selectedTrack, setSelectedTrack] = useState<AudioTrack | null>(null);
+  const [showTrackSelector, setShowTrackSelector] = useState(false);
+  const [showAllTracks, setShowAllTracks] = useState(false);
+  const [allShowTracks, setAllShowTracks] = useState<AudioTrack[]>([]);
   const audioRef = useRef<HTMLAudioElement>(null);
-
-  // Mock audio URL - in real app this would be from Archive.org
-  const mockAudioUrl = 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav';
+  const hasAttemptedLoadRef = useRef(false);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -52,6 +75,86 @@ export default function AudioPlayer({
       audio.removeEventListener('ended', handleEnded);
     };
   }, []);
+
+  // Memoize the loadAudioFromArchive function to prevent unnecessary re-renders
+  const loadAudioFromArchive = useCallback(async () => {
+    // Use archiveIdentifier if available, otherwise try to construct from showDate
+    let identifier = archiveIdentifier;
+    
+    if (!identifier && showDate) {
+      // Handle DD-MM-YYYY format from test index
+      const dateParts = showDate.split('-');
+      if (dateParts.length === 3) {
+        if (dateParts[0].length === 2) {
+          // DD-MM-YYYY format, convert to YYYY-MM-DD
+          const [day, month, year] = dateParts;
+          identifier = `gd${year}-${month}-${day}`;
+        } else {
+          // YYYY-MM-DD format
+          identifier = `gd${showDate.replace(/-/g, '')}`;
+        }
+      }
+    }
+
+    if (!identifier) {
+      setAudioError('No archive identifier available');
+      return;
+    }
+
+    if (hasAttemptedLoadRef.current) {
+      return; // Prevent duplicate calls
+    }
+
+    hasAttemptedLoadRef.current = true;
+    setIsLoadingAudio(true);
+    setAudioError(null);
+
+    try {
+      const response = await fetch(`/api/audio/search?showId=${encodeURIComponent(identifier)}&song=${encodeURIComponent(trackName)}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch audio: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.found && data.songTracks && data.songTracks.length > 0) {
+        setAvailableTracks(data.songTracks);
+        setShowDetails(data.show);
+        setShowTrackSelector(true);
+        
+        // Also store all show tracks for browsing
+        if (data.show && data.show.audioFiles) {
+          setAllShowTracks(data.show.audioFiles);
+        }
+        
+        // Auto-select the first track (usually the best quality)
+        if (data.songTracks.length === 1) {
+          setSelectedTrack(data.songTracks[0]);
+          setAudioUrl(data.songTracks[0].url);
+        } else {
+          // For multiple tracks, let user choose
+          setSelectedTrack(data.songTracks[0]);
+          setAudioUrl(data.songTracks[0].url);
+        }
+      } else {
+        setAudioError('No audio tracks found for this song');
+      }
+    } catch (error: any) {
+      console.error('Failed to load audio:', error);
+      setAudioError(error.message || 'Failed to load audio');
+    } finally {
+      setIsLoadingAudio(false);
+    }
+  }, [archiveIdentifier, showDate, trackName]);
+
+  // Load audio when component mounts or dependencies change
+  useEffect(() => {
+    if (archiveIdentifier || showDate) {
+      loadAudioFromArchive();
+    }
+  }, [archiveIdentifier, showDate, loadAudioFromArchive]);
+
 
   const togglePlayPause = () => {
     const audio = audioRef.current;
@@ -83,10 +186,22 @@ export default function AudioPlayer({
     setVolume(newVolume);
   };
 
-  const formatTime = (seconds: number) => {
+  const handleTrackSelect = useCallback((track: AudioTrack) => {
+    setSelectedTrack(track);
+    setAudioUrl(track.url);
+    setShowTrackSelector(false);
+  }, []);
+
+  const formatDuration = (seconds?: number) => {
+    if (!seconds) return 'Unknown';
     const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
+    const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const formatFileSize = (bytes: number) => {
+    const mb = bytes / (1024 * 1024);
+    return `${mb.toFixed(1)} MB`;
   };
 
   const skipForward = () => {
@@ -144,16 +259,21 @@ export default function AudioPlayer({
   return (
     <div className="audio-player">
       {/* Hidden audio element */}
-      <audio
-        ref={audioRef}
-        src={mockAudioUrl}
-        preload="metadata"
-        onLoadedMetadata={() => {
-          if (audioRef.current) {
-            setCurrentTime(0);
-          }
-        }}
-      />
+      {audioUrl && (
+        <audio
+          ref={audioRef}
+          src={audioUrl}
+          preload="metadata"
+          onLoadedMetadata={() => {
+            if (audioRef.current) {
+              setCurrentTime(0);
+            }
+          }}
+          onError={() => {
+            setAudioError('Failed to load audio file');
+          }}
+        />
+      )}
 
       {/* Playback Controls */}
       <div className="audio-controls">
@@ -182,8 +302,8 @@ export default function AudioPlayer({
       {/* Progress Bar */}
       <div className="mb-4">
         <div className="flex justify-between text-sm mb-2">
-          <span>{formatTime(currentTime)}</span>
-          <span>{duration ? formatTime(duration / 1000) : '--:--'}</span>
+          <span>{formatDuration(currentTime)}</span>
+          <span>{duration ? formatDuration(duration / 1000) : '--:--'}</span>
         </div>
         <div className="progress-bar">
           <div 
@@ -255,12 +375,160 @@ export default function AudioPlayer({
         ) : null}
       </div>
 
+      {/* Audio Loading Status */}
+      {isLoadingAudio && (
+        <div className="mt-4 p-2 border-2 border-black bg-blue-50 text-center">
+          <div className="text-sm">🔍 SEARCHING ARCHIVE.ORG...</div>
+          <div className="text-xs mt-1">
+            Identifier: {archiveIdentifier || (showDate ? `gd${showDate.split('-').reverse().join('')}` : 'Unknown')}
+          </div>
+        </div>
+      )}
+
+      {/* Audio Success Display */}
+      {audioUrl && !isLoadingAudio && !audioError && (
+        <div className="mt-4 p-2 border-2 border-black bg-green-50 text-center">
+          <div className="text-sm font-bold">🎵 AUDIO LOADED SUCCESSFULLY</div>
+          <div className="text-xs mt-1">
+            Source: Archive.org | Format: {showDetails?.format || 'Unknown'}
+          </div>
+          {availableTracks.length > 1 && (
+            <button
+              onClick={() => setShowTrackSelector(!showTrackSelector)}
+              className="mt-2 px-3 py-1 text-xs border-2 border-black bg-white hover:bg-black hover:text-white transition-colors"
+            >
+              {showTrackSelector ? 'HIDE' : 'SHOW'} TRACK SELECTOR ({availableTracks.length} TRACKS)
+            </button>
+          )}
+          {allShowTracks.length > 0 && (
+            <button
+              onClick={() => setShowAllTracks(!showAllTracks)}
+              className="mt-2 ml-2 px-3 py-1 text-xs border-2 border-black bg-white hover:bg-black hover:text-white transition-colors"
+            >
+              {showAllTracks ? 'HIDE' : 'SHOW'} ALL SHOW TRACKS ({allShowTracks.length} TOTAL)
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Track Selector */}
+      {showTrackSelector && availableTracks.length > 1 && (
+        <div className="mt-4 p-4 border-2 border-black bg-yellow-50">
+          <div className="text-sm font-bold mb-3 text-center">
+            🎵 SELECT AUDIO TRACK ({availableTracks.length} AVAILABLE)
+          </div>
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {availableTracks.map((track, index) => (
+              <button
+                key={index}
+                onClick={() => handleTrackSelect(track)}
+                className={`w-full p-2 text-left border-2 transition-colors ${
+                  selectedTrack === track 
+                    ? 'border-black bg-black text-white' 
+                    : 'border-gray-300 bg-white hover:bg-gray-50'
+                }`}
+              >
+                <div className="flex justify-between items-center">
+                  <div className="flex-1">
+                    <div className="font-semibold text-sm">
+                      {track.title || track.name}
+                    </div>
+                    <div className="text-xs text-gray-600">
+                      {track.format.toUpperCase()} • {formatDuration(track.duration)} • {formatFileSize(track.size)}
+                      {track.trackNumber && ` • Track ${track.trackNumber}`}
+                    </div>
+                  </div>
+                  {selectedTrack === track && (
+                    <div className="text-lg">✓</div>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+          <div className="text-xs text-center mt-2 text-gray-600">
+            Currently playing: {selectedTrack?.title || selectedTrack?.name}
+          </div>
+        </div>
+      )}
+
+      {/* All Show Tracks Browser */}
+      {showAllTracks && allShowTracks.length > 0 && (
+        <div className="mt-4 p-4 border-2 border-black bg-blue-50">
+          <div className="text-sm font-bold mb-3 text-center">
+            🎵 ALL SHOW TRACKS ({allShowTracks.length} TOTAL)
+          </div>
+          <div className="text-xs text-center mb-3 text-gray-600">
+            Browse all available tracks from this show
+          </div>
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {allShowTracks
+              .filter(track => track.trackNumber) // Only show numbered tracks
+              .sort((a, b) => (a.trackNumber || 0) - (b.trackNumber || 0)) // Sort by track number
+              .map((track, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleTrackSelect(track)}
+                  className={`w-full p-2 text-left border-2 transition-colors ${
+                    selectedTrack === track 
+                      ? 'border-black bg-black text-white' 
+                      : 'border-gray-300 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm">
+                        {track.trackNumber && `Track ${track.trackNumber}: `}{track.title || track.name}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {track.format.toUpperCase()} • {formatDuration(track.duration)} • {formatFileSize(track.size)}
+                      </div>
+                    </div>
+                    {selectedTrack === track && (
+                      <div className="text-lg">✓</div>
+                    )}
+                  </div>
+                </button>
+              ))}
+          </div>
+          <div className="text-xs text-center mt-2 text-gray-600">
+            Click any track to play it
+          </div>
+        </div>
+      )}
+
+      {/* Audio Error Display */}
+      {audioError && (
+        <div className="mt-4 p-2 border-2 border-black bg-red-50 text-center">
+          <div className="text-sm font-bold">AUDIO ERROR: {audioError}</div>
+          <div className="text-xs mt-1">
+            {archiveIdentifier ? `Archive ID: ${archiveIdentifier}` : 
+             showDate ? `Constructed ID: gd${showDate.split('-').reverse().join('')}` : 'No identifier available'}
+          </div>
+        </div>
+      )}
+
+      {/* Show Details */}
+      {showDetails && (
+        <div className="mt-4 p-2 border-2 border-black bg-green-50">
+          <div className="text-sm font-bold mb-2">SHOW RECORDING FOUND</div>
+          <div className="text-xs space-y-1">
+            <div><strong>Title:</strong> {showDetails.title}</div>
+            <div><strong>Date:</strong> {showDetails.date}</div>
+            <div><strong>Format:</strong> {showDetails.format}</div>
+            <div><strong>Audio Files:</strong> {showDetails.audioFiles.length}</div>
+            {showDetails.venue && <div><strong>Venue:</strong> {showDetails.venue}</div>}
+          </div>
+        </div>
+      )}
+
+
+
       {/* Status Display */}
       <div className="mt-4 p-2 border-2 border-black text-center">
         <div className="text-sm">
           Status: {isPlaying ? 'Playing' : 'Paused'} | 
-          Source: Archive.org | 
-          Format: FLAC
+          Source: {audioUrl ? 'Archive.org' : 'No Audio'} | 
+          Format: {showDetails?.format || 'Unknown'}
         </div>
       </div>
     </div>

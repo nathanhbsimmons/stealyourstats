@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Song, Show, Venue, Performance, Recording } from '@/types';
-import { mockShows, mockVenues, mockPerformances, mockRecordings, eraLabels } from '@/data/mockData';
-import { DateTime } from 'luxon';
+import React, { useState, useEffect } from 'react';
+import { Song, SongDetail as SongDetailType, Show } from '@/types';
+import AudioPlayer from './AudioPlayer';
 
 interface SongDetailProps {
   song: Song;
@@ -12,39 +11,49 @@ interface SongDetailProps {
 }
 
 export default function SongDetail({ song, onBack, onShowSelect }: SongDetailProps) {
-  const [activeTab, setActiveTab] = useState<'summary' | 'performances'>('summary');
+  const [songDetail, setSongDetail] = useState<SongDetailType | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data - in real app this would come from API
-  const mockSongDetail = {
-    debutShow: mockShows[0],
-    lastShow: mockShows[mockShows.length - 1],
-    longest: {
-      durationMs: 510000, // 8.5 minutes
-      show: mockShows[1],
-      ...mockPerformances[3]
-    },
-    shortest: {
-      durationMs: 420000, // 7 minutes
-      show: mockShows[0],
-      ...mockPerformances[0]
-    },
-    counts: {
-      openers: 1,
-      closers: 0,
-      encores: 0
-    },
-    avgDurationByYear: {
-      '1969': 420000,
-      '1977': 510000
-    }
-  };
+  useEffect(() => {
+    const fetchSongDetail = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const response = await fetch(`/api/songs/${song.slug}`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error('Song not found');
+          }
+          throw new Error(`Failed to fetch song details: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        setSongDetail(data);
+      } catch (err) {
+        console.error('Error fetching song details:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load song details');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSongDetail();
+  }, [song.slug]);
 
   const getEraLabel = (year: string) => {
-    return eraLabels.find(era => {
-      const [start, end] = era.year.split('-').map(y => parseInt(y));
-      const yearNum = parseInt(year);
-      return yearNum >= start && yearNum <= (end || start);
-    });
+    const yearNum = parseInt(year);
+    if (yearNum >= 1965 && yearNum <= 1967) return 'Primal';
+    if (yearNum >= 1968 && yearNum <= 1970) return 'Pigpen Peak';
+    if (yearNum >= 1971 && yearNum <= 1972) return 'Europe \'72';
+    if (yearNum >= 1973 && yearNum <= 1974) return 'Wall of Sound';
+    if (yearNum >= 1976 && yearNum <= 1978) return 'Return + \'77';
+    if (yearNum >= 1979 && yearNum <= 1986) return 'Brent (early)';
+    if (yearNum >= 1987 && yearNum <= 1990) return 'Brent (late)';
+    if (yearNum >= 1991 && yearNum <= 1995) return 'Vince';
+    return 'Unknown Era';
   };
 
   const formatDuration = (ms: number) => {
@@ -54,205 +63,309 @@ export default function SongDetail({ song, onBack, onShowSelect }: SongDetailPro
   };
 
   const formatDate = (dateStr: string) => {
-    return DateTime.fromISO(dateStr).toFormat('MMM dd, yyyy');
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
-  return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+  if (isLoading) {
+    return (
+      <div className="text-center p-8">
+        <div className="text-lg font-bold">LOADING SONG DETAILS...</div>
+        <div className="text-sm mt-2">Please wait while we fetch the data</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center p-8">
+        <div className="text-lg font-bold text-red-600">ERROR LOADING SONG</div>
+        <div className="text-sm mt-2">{error}</div>
         <button
           onClick={onBack}
-          className="btn-brutalist"
+          className="btn-brutalist mt-4"
         >
-          ← BACK
-        </button>
-        <h1>{song.title.toUpperCase()}</h1>
-        <div></div>
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="flex border-b-0">
-        <button
-          onClick={() => setActiveTab('summary')}
-          className={`tab-brutalist ${
-            activeTab === 'summary' ? 'active' : ''
-          }`}
-        >
-          SUMMARY
-        </button>
-        <button
-          onClick={() => setActiveTab('performances')}
-          className={`tab-brutalist ${
-            activeTab === 'performances' ? 'active' : ''
-          }`}
-        >
-          PERFORMANCES
+          BACK TO SEARCH
         </button>
       </div>
+    );
+  }
 
-      {/* Tab Content */}
-      {activeTab === 'summary' && (
-        <div className="space-y-8">
-          {/* Key Stats */}
-          <div className="grid grid-cols-2 gap-8">
-            <div className="status-card">
-              <div className="status-card-header">
-                DEBUT SHOW
-              </div>
-              <div className="p-4">
-                <div className="font-bold text-lg">{formatDate(mockSongDetail.debutShow.date)}</div>
-                <div>
-                  {mockVenues.find(v => v.id === mockSongDetail.debutShow.venueId)?.name}
-                </div>
-                <button
-                  onClick={() => onShowSelect(mockSongDetail.debutShow)}
-                  className="btn-brutalist mt-4"
-                >
-                  VIEW SHOW
-                </button>
-              </div>
-            </div>
+  if (!songDetail) {
+    return (
+      <div className="text-center p-8">
+        <div className="text-lg font-bold">SONG NOT FOUND</div>
+        <div className="text-sm mt-2">The requested song could not be loaded</div>
+        <button
+          onClick={onBack}
+          className="btn-brutalist mt-4"
+        >
+          BACK TO SEARCH
+        </button>
+      </div>
+    );
+  }
 
-            <div className="status-card">
-              <div className="status-card-header">
-                LAST SHOW
-              </div>
-              <div className="p-4">
-                <div className="font-bold text-lg">{formatDate(mockSongDetail.lastShow.date)}</div>
-                <div>
-                  {mockVenues.find(v => v.id === mockSongDetail.lastShow.venueId)?.name}
-                </div>
-                <button
-                  onClick={() => onShowSelect(mockSongDetail.lastShow)}
-                  className="btn-brutalist mt-4"
-                >
-                  VIEW SHOW
-                </button>
-              </div>
-            </div>
-          </div>
+  return (
+    <div className="space-y-6">
+      {/* Back Button */}
+      <button
+        onClick={onBack}
+        className="btn-brutalist"
+      >
+        ← BACK TO SEARCH
+      </button>
 
-          {/* Duration Stats */}
-          <div className="grid grid-cols-2 gap-8">
-            <div className="status-card">
-              <div className="status-card-header">
-                LONGEST PERFORMANCE
-              </div>
-              <div className="p-4">
-                <div className="font-bold text-2xl">
-                  {formatDuration(mockSongDetail.longest.durationMs)}
-                </div>
-                <div>
-                  {formatDate(mockSongDetail.longest.show.date)} - {mockVenues.find(v => v.id === mockSongDetail.longest.show.venueId)?.name}
-                </div>
-              </div>
-            </div>
+      {/* Song Title */}
+      <div className="text-center">
+        <h1 className="text-4xl font-bold uppercase">{song.title}</h1>
+        {song.altTitles && song.altTitles.length > 1 && (
+          <p className="text-sm mt-2">
+            Also known as: {song.altTitles.filter(t => t !== song.title).join(', ')}
+          </p>
+        )}
+        {song.altTitles && song.altTitles.length === 1 && song.altTitles[0] !== song.title && (
+          <p className="text-sm mt-2">
+            Also known as: {song.altTitles[0]}
+          </p>
+        )}
+      </div>
 
-            <div className="status-card">
-              <div className="status-card-header">
-                SHORTEST PERFORMANCE
-              </div>
-              <div className="p-4">
-                <div className="font-bold text-2xl">
-                  {formatDuration(mockSongDetail.shortest.durationMs)}
-                </div>
-                <div>
-                  {formatDate(mockSongDetail.shortest.show.date)} - {mockVenues.find(v => v.id === mockSongDetail.shortest.show.venueId)?.name}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Counts */}
+      {/* Song Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Debut Show */}
+        {songDetail.debutShow && (
           <div className="status-card">
-            <div className="status-card-header">
-              PERFORMANCE COUNTS
+            <div className="status-card-header">DEBUT SHOW</div>
+            <div className="status-row">
+              <span className="status-label">DATE:</span>
+              <span className="status-value">{formatDate(songDetail.debutShow.date)}</span>
             </div>
-            <div className="p-4">
-              <div className="grid grid-cols-3 gap-8 text-center">
-                <div>
-                  <div className="text-2xl font-bold">{mockSongDetail.counts.openers}</div>
-                  <div className="text-sm uppercase">OPENERS</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{mockSongDetail.counts.closers}</div>
-                  <div className="text-sm uppercase">CLOSERS</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{mockSongDetail.counts.encores}</div>
-                  <div className="text-sm uppercase">ENCORES</div>
-                </div>
-              </div>
+            <div className="status-row">
+              <span className="status-label">VENUE:</span>
+              <span className="status-value">
+                {songDetail.debutShow.venue?.name || 'Unknown'}
+                {songDetail.debutShow.venue?.city && `, ${songDetail.debutShow.venue.city}`}
+              </span>
+            </div>
+            <div className="status-row">
+              <span className="status-label">ERA:</span>
+              <span className="status-value">{getEraLabel(new Date(songDetail.debutShow.date).getFullYear().toString())}</span>
             </div>
           </div>
+        )}
 
-          {/* Era Context */}
+        {/* Last Show */}
+        {songDetail.lastShow && (
           <div className="status-card">
-            <div className="status-card-header">
-              ERA CONTEXT
+            <div className="status-card-header">LAST SHOW</div>
+            <div className="status-row">
+              <span className="status-label">DATE:</span>
+              <span className="status-value">{formatDate(songDetail.lastShow.date)}</span>
             </div>
-            <div className="p-4">
-              {Object.keys(mockSongDetail.avgDurationByYear).map(year => {
-                const era = getEraLabel(year);
-                return (
-                  <div key={year} className="mb-4 p-4 border-2 border-black">
-                    <div className="font-bold text-lg">{year} - {era?.label}</div>
-                    <div>{era?.description}</div>
-                    <div className="text-sm mt-2">
-                      Avg duration: {formatDuration(mockSongDetail.avgDurationByYear[year])}
+            <div className="status-row">
+              <span className="status-label">VENUE:</span>
+              <span className="status-value">
+                {songDetail.lastShow.venue?.name || 'Unknown'}
+                {songDetail.lastShow.venue?.city && `, ${songDetail.lastShow.venue.city}`}
+              </span>
+            </div>
+            <div className="status-row">
+              <span className="status-label">ERA:</span>
+              <span className="status-value">{getEraLabel(new Date(songDetail.lastShow.date).getFullYear().toString())}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Performance Statistics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Longest Performance */}
+        {songDetail.longest && (
+          <div className="status-card">
+            <div className="status-card-header">LONGEST PERFORMANCE</div>
+            <div className="status-row">
+              <span className="status-label">DURATION:</span>
+              <span className="status-value">{formatDuration(songDetail.longest.durationMs)}</span>
+            </div>
+            <div className="status-row">
+              <span className="status-label">DATE:</span>
+              <span className="status-value">{formatDate(songDetail.longest.show.date)}</span>
+            </div>
+            <div className="status-row">
+              <span className="status-label">VENUE:</span>
+              <span className="status-value">
+                {songDetail.longest.show.venue?.name || 'Unknown'}
+                {songDetail.longest.show.venue?.city && `, ${songDetail.longest.show.venue.city}`}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Shortest Performance */}
+        {songDetail.shortest && (
+          <div className="status-card">
+            <div className="status-card-header">SHORTEST PERFORMANCE</div>
+            <div className="status-row">
+              <span className="status-label">DURATION:</span>
+              <span className="status-value">{formatDuration(songDetail.shortest.durationMs)}</span>
+            </div>
+            <div className="status-row">
+              <span className="status-label">DATE:</span>
+              <span className="status-value">{formatDate(songDetail.shortest.show.date)}</span>
+            </div>
+            <div className="status-row">
+              <span className="status-label">VENUE:</span>
+              <span className="status-value">
+                {songDetail.shortest.show.venue?.name || 'Unknown'}
+                {songDetail.shortest.show.venue?.city && `, ${songDetail.shortest.show.venue.city}`}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* BPM Statistics */}
+      {(songDetail.highestBpm || songDetail.lowestBpm) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Highest BPM */}
+          {songDetail.highestBpm && (
+            <div className="status-card">
+              <div className="status-card-header">HIGHEST BPM</div>
+              <div className="status-row">
+                <span className="status-label">BPM:</span>
+                <span className="status-value">{songDetail.highestBpm.bpm.toFixed(1)}</span>
+              </div>
+              <div className="status-row">
+                <span className="status-label">CONFIDENCE:</span>
+                <span className="status-value">{(songDetail.highestBpm.bpmConfidence * 100).toFixed(1)}%</span>
+              </div>
+              <div className="status-row">
+                <span className="status-label">DATE:</span>
+                <span className="status-value">{formatDate(songDetail.highestBpm.show.date)}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Lowest BPM */}
+          {songDetail.lowestBpm && (
+            <div className="status-card">
+              <div className="status-card-header">LOWEST BPM</div>
+              <div className="status-row">
+                <span className="status-label">BPM:</span>
+                <span className="status-value">{songDetail.lowestBpm.bpm.toFixed(1)}</span>
+              </div>
+              <div className="status-row">
+                <span className="status-label">CONFIDENCE:</span>
+                <span className="status-value">{(songDetail.lowestBpm.bpmConfidence * 100).toFixed(1)}%</span>
+              </div>
+              <div className="status-row">
+                <span className="status-label">DATE:</span>
+                <span className="status-value">{formatDate(songDetail.lowestBpm.show.date)}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Performance Counts */}
+      <div className="status-card">
+        <div className="status-card-header">PERFORMANCE STATISTICS</div>
+        <div className="status-row">
+          <span className="status-label">TOTAL PERFORMANCES:</span>
+          <span className="status-value font-bold text-lg">{songDetail.counts.total || songDetail.shows?.length || 0}</span>
+        </div>
+        <div className="status-row">
+          <span className="status-label">OPENERS:</span>
+          <span className="status-value">{songDetail.counts.openers}</span>
+        </div>
+        <div className="status-row">
+          <span className="status-label">CLOSERS:</span>
+          <span className="status-value">{songDetail.counts.closers}</span>
+        </div>
+        <div className="status-row">
+          <span className="status-label">ENCORES:</span>
+          <span className="status-value">{songDetail.counts.encores}</span>
+        </div>
+      </div>
+
+      {/* Average Duration by Year Chart */}
+      {Object.keys(songDetail.sampling.avgDurationByYear).length > 0 && (
+        <div className="status-card">
+          <div className="status-card-header">AVERAGE DURATION BY YEAR</div>
+          <div className="panel-content">
+            <div className="ascii-chart">
+              {Object.entries(songDetail.sampling.avgDurationByYear)
+                .sort(([a], [b]) => parseInt(a) - parseInt(b))
+                .map(([year, duration]) => (
+                  <div key={year} className="mb-2">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm font-bold">{year}:</span>
+                      <span className="text-sm">{formatDuration(duration)}</span>
+                    </div>
+                    <div className="ascii-bar" style={{ width: `${Math.min((duration / 600000) * 100, 100)}%` }}>
+                      {'█'.repeat(Math.floor((duration / 600000) * 20))}
                     </div>
                   </div>
-                );
-              })}
+                ))}
             </div>
           </div>
         </div>
       )}
 
-      {activeTab === 'performances' && (
-        <div className="space-y-4">
-          <div className="panel-brutalist">
-            <div className="panel-header">
-              ALL PERFORMANCES
-            </div>
-            <div className="panel-content">
-              {mockPerformances
-                .filter(p => p.songId === song.id)
-                .map((performance) => {
-                  const show = mockShows.find(s => s.id === performance.showId);
-                  const venue = mockVenues.find(v => v.id === show?.venueId);
-                  return (
-                    <div key={performance.id} className="list-item">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="list-item-title">
-                            {show ? formatDate(show.date) : 'Unknown Date'}
-                          </div>
-                          <div>
-                            {venue?.name} - {venue?.city}, {venue?.state}
-                          </div>
-                          <div className="list-item-meta">
-                            Set {performance.setNumber}, Position {performance.positionInSet}
-                            {performance.isOpener && ' (Opener)'}
-                            {performance.isCloser && ' (Closer)'}
-                            {performance.isEncore && ' (Encore)'}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => show && onShowSelect(show)}
-                          className="btn-brutalist"
-                        >
-                          VIEW SHOW
-                        </button>
+      {/* Era Hints */}
+      {songDetail.eraHints.length > 0 && (
+        <div className="status-card">
+          <div className="status-card-header">ERA CONTEXT</div>
+          <div className="panel-content">
+            {songDetail.eraHints.map((hint, index) => (
+              <div key={index} className="mb-2">
+                <span className="font-bold">{hint.year}:</span> {hint.label}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Complete Show Collection */}
+      {songDetail.shows && songDetail.shows.length > 0 && (
+        <div className="status-card">
+          <div className="status-card-header">COMPLETE PERFORMANCE HISTORY ({songDetail.shows.length} shows)</div>
+          <div className="panel-content">
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {songDetail.shows.map((show, index) => (
+                <div key={show.id} className="border-b border-gray-200 pb-2 last:border-b-0">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm">
+                        {formatDate(show.date)}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {show.venue?.name || 'Unknown Venue'}
+                        {show.venue?.city && `, ${show.venue.city}`}
                       </div>
                     </div>
-                  );
-                })}
+                    <div className="text-xs text-gray-500 ml-2">
+                      #{index + 1}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       )}
+
+      {/* Audio Player */}
+      <AudioPlayer
+        trackName={song.title}
+        duration={songDetail.longest?.durationMs}
+        showDate={songDetail.shows[0]?.date}
+        archiveIdentifier={songDetail.shows[0]?.id}
+      />
     </div>
   );
 }

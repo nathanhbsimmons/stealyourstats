@@ -1,132 +1,198 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Fuse from 'fuse.js';
+import React, { useState } from 'react';
 import { Song } from '@/types';
-import { mockSongs } from '@/data/mockData';
 
 interface SearchProps {
   onSongSelect: (song: Song) => void;
 }
 
+interface SearchResult {
+  songs: Song[];
+  source: 'database' | 'external';
+}
+
 export default function Search({ onSongSelect }: SearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Song[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searchSource, setSearchSource] = useState<'database' | 'external' | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
-  // Initialize Fuse.js for fuzzy search
-  const fuse = new Fuse(mockSongs, {
-    keys: ['title', 'altTitles'],
-    threshold: 0.3,
-    includeScore: true
-  });
+  const handleSearch = async () => {
+    if (!query.trim()) {
+      setResults([]);
+      setSearchSource(null);
+      setHasSearched(false);
+      return;
+    }
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (query.trim()) {
-        setIsSearching(true);
-        const searchResults = fuse.search(query);
-        setResults(searchResults.slice(0, 10).map(result => result.item));
-        setIsSearching(false);
-      } else {
-        setResults([]);
+    setIsLoading(true);
+    setError(null);
+    setHasSearched(true);
+
+    try {
+      const response = await fetch(`/api/songs?q=${encodeURIComponent(query)}&limit=20`);
+      
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.statusText}`);
       }
-    }, 250); // Debounce as specified in requirements
 
-    return () => clearTimeout(timeoutId);
-  }, [query]);
+      const data: SearchResult = await response.json();
+      setResults(data.songs || []);
+      setSearchSource(data.source);
+    } catch (err) {
+      console.error('Search error:', err);
+      setError(err instanceof Error ? err.message : 'Search failed');
+      setResults([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSongClick = (song: Song) => {
+    onSongSelect(song);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
+  const clearSearch = () => {
+    setQuery('');
+    setResults([]);
+    setError(null);
+    setSearchSource(null);
+    setHasSearched(false);
+  };
 
   return (
-    <div className="space-y-8">
-      <div className="text-center">
-        <h1>STEAL YOUR STATS</h1>
-        <p>A Grateful Dead Song Lookup Tool</p>
+    <div className="search-bar">
+      <div className="search-label">SEARCH FOR A SONG</div>
+      
+      <div className="mb-4 flex gap-2">
+        <input
+          type="text"
+          value={query}
+          onChange={handleInputChange}
+          onKeyPress={handleKeyPress}
+          placeholder="Type a song title..."
+          className="input-brutalist flex-1"
+          disabled={isLoading}
+        />
+        
+        <button
+          onClick={handleSearch}
+          className="btn-brutalist"
+          disabled={isLoading || !query.trim()}
+        >
+          {isLoading ? 'SEARCHING...' : 'SEARCH'}
+        </button>
+        
+        {query && (
+          <button
+            onClick={clearSearch}
+            className="btn-brutalist"
+          >
+            CLEAR
+          </button>
+        )}
       </div>
 
-      {/* Search Input */}
-      <div className="max-w-2xl mx-auto">
-        <div className="search-bar">
-          <label className="search-label">SEARCH FOR A SONG</label>
-          <div className="relative">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search for a song..."
-              className="input-brutalist"
-            />
-          </div>
+      {/* Search Status */}
+      {isLoading && (
+        <div className="mb-4 p-2 border-2 border-black text-center">
+          <div className="text-sm">SEARCHING...</div>
         </div>
-      </div>
+      )}
+
+      {error && (
+        <div className="mb-4 p-2 border-2 border-black bg-red-50 text-center">
+          <div className="text-sm font-bold">ERROR: {error}</div>
+        </div>
+      )}
 
       {/* Search Results */}
-      {isSearching && (
-        <div className="text-center">
-          <div className="inline-block">Searching...</div>
-        </div>
-      )}
-
       {results.length > 0 && (
-        <div className="max-w-2xl mx-auto">
-          <div className="panel-brutalist">
-            <div className="panel-header">
-              SEARCH RESULTS
-            </div>
-            <div className="panel-content">
-              {results.map((song) => (
-                <div
-                  key={song.id}
-                  onClick={() => onSongSelect(song)}
-                  className="list-item"
-                >
-                  <div className="list-item-title">{song.title}</div>
-                  {song.altTitles.length > 1 && (
-                    <div className="list-item-meta">
-                      Also known as: {song.altTitles.filter(t => t !== song.title).join(', ')}
-                    </div>
-                  )}
+        <div className="mb-4">
+          <div className="panel-header">
+            SEARCH RESULTS ({results.length}) - Source: {searchSource?.toUpperCase()}
+          </div>
+          <div className="panel-content">
+            {results.map((song) => (
+              <div
+                key={song.id}
+                className="list-item"
+                onClick={() => handleSongClick(song)}
+              >
+                <div className="list-item-title">{song.title}</div>
+                <div className="list-item-meta">
+                  ID: {song.id} | Slug: {song.slug}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {query && !isSearching && results.length === 0 && (
-        <div className="text-center max-w-2xl mx-auto">
-          <div className="panel-brutalist">
-            <div className="panel-header">
-              NO RESULTS
-            </div>
-            <div className="panel-content">
-              <div className="mb-4">No songs found</div>
-              <p>Try searching for a different song title or check the spelling.</p>
-              <p className="mt-4">Popular songs: Scarlet Begonias, Dark Star, Truckin', Casey Jones</p>
-            </div>
-          </div>
+      {/* No Results */}
+      {hasSearched && !isLoading && !error && results.length === 0 && (
+        <div className="mb-4 p-2 border-2 border-black text-center">
+          <div className="text-sm">No songs found matching "{query}"</div>
+          <div className="text-xs mt-1">Try a different search term</div>
         </div>
       )}
 
       {/* Quick Links */}
-      {!query && (
-        <div className="max-w-4xl mx-auto">
-          <div className="panel-brutalist">
-            <div className="panel-header">
-              QUICK LINKS
-            </div>
-            <div className="panel-content">
-              <div className="quick-links-grid">
-                {mockSongs.slice(0, 4).map((song) => (
-                  <div
-                    key={song.id}
-                    onClick={() => onSongSelect(song)}
-                    className="quick-link-item"
-                  >
-                    <div className="font-bold">{song.title}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+      {!hasSearched && results.length === 0 && (
+        <div className="quick-links-grid">
+          <div
+            className="quick-link-item"
+            onClick={() => onSongSelect({
+              id: 'scarlet-begonias',
+              artistId: 'grateful-dead',
+              title: 'Scarlet Begonias',
+              altTitles: ['Scarlet Begonias', 'Scarlet'],
+              slug: 'scarlet-begonias'
+            })}
+          >
+            <div className="font-bold">SCARLET BEGONIAS</div>
+            <div className="text-sm">Click to view details</div>
+          </div>
+          
+          <div
+            className="quick-link-item"
+            onClick={() => onSongSelect({
+              id: 'fire-on-the-mountain',
+              artistId: 'grateful-dead',
+              title: 'Fire on the Mountain',
+              altTitles: ['Fire on the Mountain', 'Fire'],
+              slug: 'fire-on-the-mountain'
+            })}
+          >
+            <div className="font-bold">FIRE ON THE MOUNTAIN</div>
+            <div className="text-sm">Click to view details</div>
+          </div>
+          
+          <div
+            className="quick-link-item"
+            onClick={() => onSongSelect({
+              id: 'truckin',
+              artistId: 'grateful-dead',
+              title: 'Truckin\'',
+              altTitles: ['Truckin\'', 'Truckin'],
+              slug: 'truckin'
+            })}
+          >
+            <div className="font-bold">TRUCKIN'</div>
+            <div className="text-sm">Click to view details</div>
           </div>
         </div>
       )}

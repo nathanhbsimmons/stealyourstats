@@ -118,3 +118,38 @@ export interface EraLabel {
   label: string;
   description: string;
 }
+
+export interface SongIndex {
+  songs: SongIndexEntry[];
+  lastUpdated: string;
+  totalShows: number;
+}
+
+export interface SongIndexEntry {
+  title: string;
+  slug: string;
+  altTitles: string[];
+  shows: ShowInfo[];
+  totalPerformances: number;
+  firstPerformance: ShowInfo;
+  lastPerformance: ShowInfo;
+}
+
+export interface ShowInfo {
+  id: string;
+  date: string;
+  venue: {
+    id: string;
+    name: string;
+    city: string;
+    country: string;
+  };
+  year: number;
+  era: string;
+}
+
+export interface SetlistSyncInfo {
+  lastUpdated: string;
+  totalSetlists: number;
+  lastSetlistId: string;
+}

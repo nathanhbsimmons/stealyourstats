@@ -1,0 +1,229 @@
+{
+  "songs": [
+    {
+      "title": "Jack Straw",
+      "slug": "jack-straw",
+      "altTitles": [
+        "Jack Straw",
+        "Jack Straw from Wichita"
+      ],
+      "shows": [
+        {
+          "id": "gd1977-05-08.137571.mtx-2aud.dusborne.flac24",
+          "date": "08-05-1977",
+          "venue": {
+            "id": "barton-hall",
+            "name": "Barton Hall, Cornell University",
+            "city": "Ithaca",
+            "country": "United States"
+          },
+          "year": 1977,
+          "era": "Return + '77 Era"
+        },
+        {
+          "id": "gd1977-05-08.mtx.dan.29511.flac16",
+          "date": "15-04-1978",
+          "venue": {
+            "id": "capitol-theatre",
+            "name": "Capitol Theatre",
+            "city": "Passaic",
+            "country": "United States"
+          },
+          "year": 1978,
+          "era": "Return + '77 Era"
+        },
+        {
+          "id": "gd1977-05-08.sbd.hicks.4982.sbeok.shnf",
+          "date": "06-09-1980",
+          "venue": {
+            "id": "red-rocks",
+            "name": "Red Rocks Amphitheatre",
+            "city": "Morrison",
+            "country": "United States"
+          },
+          "year": 1980,
+          "era": "Brent Early Era"
+        }
+      ],
+      "totalPerformances": 3,
+      "firstPerformance": {
+        "id": "gd1977-05-08.137571.mtx-2aud.dusborne.flac24",
+        "date": "08-05-1977",
+        "venue": {
+          "id": "barton-hall",
+          "name": "Barton Hall, Cornell University",
+          "city": "Ithaca",
+          "country": "United States"
+        },
+        "year": 1977,
+        "era": "Return + '77 Era"
+      },
+      "lastPerformance": {
+        "id": "gd1977-05-08.sbd.hicks.4982.sbeok.shnf",
+        "date": "06-09-1980",
+        "venue": {
+          "id": "red-rocks",
+          "name": "Red Rocks Amphitheatre",
+          "city": "Morrison",
+          "country": "United States"
+        },
+        "year": 1980,
+        "era": "Brent Early Era"
+      }
+    },
+    {
+      "title": "China Cat Sunflower",
+      "slug": "china-cat-sunflower",
+      "altTitles": [
+        "China Cat Sunflower",
+        "China Cat"
+      ],
+      "shows": [
+        {
+          "id": "gd1977-05-08.mtx.dan.29511.flac16",
+          "date": "27-02-1969",
+          "venue": {
+            "id": "fillmore-west",
+            "name": "Fillmore West",
+            "city": "San Francisco",
+            "country": "United States"
+          },
+          "year": 1969,
+          "era": "Pigpen Peak Era"
+        },
+        {
+          "id": "gd1977-05-08.sbd.hicks.4982.sbeok.shnf",
+          "date": "04-05-1972",
+          "venue": {
+            "id": "olympia-theatre",
+            "name": "Olympia Theatre",
+            "city": "Paris",
+            "country": "France"
+          },
+          "year": 1972,
+          "era": "Europe '72 Era"
+        }
+      ],
+      "totalPerformances": 2,
+      "firstPerformance": {
+        "id": "gd1977-05-08.mtx.dan.29511.flac16",
+        "date": "27-02-1969",
+        "venue": {
+          "id": "fillmore-west",
+          "name": "Fillmore West",
+          "city": "San Francisco",
+          "country": "United States"
+        },
+        "year": 1969,
+        "era": "Pigpen Peak Era"
+      },
+      "lastPerformance": {
+        "id": "gd1977-05-08.sbd.hicks.4982.sbeok.shnf",
+        "date": "04-05-1972",
+        "venue": {
+          "id": "olympia-theatre",
+          "name": "Olympia Theatre",
+          "city": "Paris",
+          "country": "France"
+        },
+        "year": 1972,
+        "era": "Europe '72 Era"
+      }
+    },
+    {
+      "title": "Scarlet Begonias",
+      "slug": "scarlet-begonias",
+      "altTitles": [
+        "Scarlet Begonias"
+      ],
+      "shows": [
+        {
+          "id": "gd1977-05-08.137571.mtx-2aud.dusborne.flac24",
+          "date": "08-05-1977",
+          "venue": {
+            "id": "barton-hall",
+            "name": "Barton Hall, Cornell University",
+            "city": "Ithaca",
+            "country": "United States"
+          },
+          "year": 1977,
+          "era": "Return + '77 Era"
+        }
+      ],
+      "totalPerformances": 1,
+      "firstPerformance": {
+        "id": "gd1977-05-08.137571.mtx-2aud.dusborne.flac24",
+        "date": "08-05-1977",
+        "venue": {
+          "id": "barton-hall",
+          "name": "Barton Hall, Cornell University",
+          "city": "Ithaca",
+          "country": "United States"
+        },
+        "year": 1977,
+        "era": "Return + '77 Era"
+      },
+      "lastPerformance": {
+        "id": "gd1977-05-08.137571.mtx-2aud.dusborne.flac24",
+        "date": "08-05-1977",
+        "venue": {
+          "id": "barton-hall",
+          "name": "Barton Hall, Cornell University",
+          "city": "Ithaca",
+          "country": "United States"
+        },
+        "year": 1977,
+        "era": "Return + '77 Era"
+      }
+    },
+    {
+      "title": "Fire on the Mountain",
+      "slug": "fire-on-the-mountain",
+      "altTitles": [
+        "Fire on the Mountain",
+        "Fire"
+      ],
+      "shows": [
+        {
+          "id": "gd1977-05-08.137571.mtx-2aud.dusborne.flac24",
+          "date": "08-05-1977",
+          "venue": {
+            "id": "barton-hall",
+            "name": "Barton Hall, Cornell University",
+            "city": "Ithaca",
+            "country": "United States"
+          },
+          "year": 1977,
+          "era": "Return + '77 Era"
+        }
+      ],
+      "totalPerformances": 1,
+      "firstPerformance": {
+        "id": "gd1977-05-08.137571.mtx-2aud.dusborne.flac24",
+        "date": "08-05-1977",
+        "venue": {
+          "id": "barton-hall",
+          "name": "Barton Hall, Cornell University",
+          "city": "Ithaca",
+          "country": "United States"
+        },
+        "year": 1977,
+        "era": "Return + '77 Era"
+      },
+      "lastPerformance": {
+        "id": "gd1977-05-08.137571.mtx-2aud.dusborne.flac24",
+        "date": "08-05-1977",
+        "venue": {
+          "id": "barton-hall",
+          "name": "Barton Hall, Cornell University",
+          "city": "Ithaca",
+          "country": "United States"
+        },
+        "year": 1977,
+        "era": "Return + '77 Era"
+      }
+    }
+  ],
+  "lastUpdated": "2025-08-24T15:54:22.611Z",
+  "totalShows": 13
+}

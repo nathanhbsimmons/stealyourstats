@@ -1,9 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Show, Venue, Recording } from '@/types';
-import { mockVenues, mockRecordings, eraLabels } from '@/data/mockData';
-import { DateTime } from 'luxon';
+import React, { useState, useEffect } from 'react';
+import { Show, ShowDetail as ShowDetailType } from '@/types';
 import AudioPlayer from './AudioPlayer';
 
 interface ShowDetailProps {
@@ -12,23 +10,58 @@ interface ShowDetailProps {
 }
 
 export default function ShowDetail({ show, onBack }: ShowDetailProps) {
-  const [activeTab, setActiveTab] = useState<'info' | 'setlist' | 'recordings'>('info');
-  const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
+  const [showDetail, setShowDetail] = useState<ShowDetailType | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const venue = mockVenues.find(v => v.id === show.venueId);
-  const recordings = mockRecordings.filter(r => r.showId === show.id);
+  useEffect(() => {
+    const fetchShowDetail = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const response = await fetch(`/api/shows/${show.id}`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error('Show not found');
+          }
+          throw new Error(`Failed to fetch show details: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        setShowDetail(data);
+      } catch (err) {
+        console.error('Error fetching show details:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load show details');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchShowDetail();
+  }, [show.id]);
 
   const getEraLabel = (dateStr: string) => {
-    const year = DateTime.fromISO(dateStr).year.toString();
-    return eraLabels.find(era => {
-      const [start, end] = era.year.split('-').map(y => parseInt(y));
-      const yearNum = parseInt(year);
-      return yearNum >= start && yearNum <= (end || start);
-    });
+    const year = new Date(dateStr).getFullYear();
+    if (year >= 1965 && year <= 1967) return 'Primal';
+    if (year >= 1968 && year <= 1970) return 'Pigpen Peak';
+    if (year >= 1971 && year <= 1972) return 'Europe \'72';
+    if (year >= 1973 && year <= 1974) return 'Wall of Sound';
+    if (year >= 1976 && year <= 1978) return 'Return + \'77';
+    if (year >= 1979 && year <= 1986) return 'Brent (early)';
+    if (year >= 1987 && year <= 1990) return 'Brent (late)';
+    if (year >= 1991 && year <= 1995) return 'Vince';
+    return 'Unknown Era';
   };
 
   const formatDate = (dateStr: string) => {
-    return DateTime.fromISO(dateStr).toFormat('EEEE, MMMM dd, yyyy');
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long'
+    });
   };
 
   const formatDuration = (ms: number) => {
@@ -37,245 +70,189 @@ export default function ShowDetail({ show, onBack }: ShowDetailProps) {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  // Mock setlist data
-  const mockSetlist = [
-    { setNumber: 1, positionInSet: 1, songTitle: 'Scarlet Begonias', segueToSongTitle: 'Fire on the Mountain' },
-    { setNumber: 1, positionInSet: 2, songTitle: 'Fire on the Mountain' },
-    { setNumber: 1, positionInSet: 3, songTitle: 'Dark Star' },
-    { setNumber: 1, positionInSet: 4, songTitle: 'Truckin\'' },
-    { setNumber: 2, positionInSet: 1, songTitle: 'Casey Jones' },
-    { setNumber: 2, positionInSet: 2, songTitle: 'Scarlet Begonias' },
-    { setNumber: 2, positionInSet: 3, songTitle: 'Fire on the Mountain' }
-  ];
+  if (isLoading) {
+    return (
+      <div className="text-center p-8">
+        <div className="text-lg font-bold">LOADING SHOW DETAILS...</div>
+        <div className="text-sm mt-2">Please wait while we fetch the data</div>
+      </div>
+    );
+  }
 
-  return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+  if (error) {
+    return (
+      <div className="text-center p-8">
+        <div className="text-lg font-bold text-red-600">ERROR LOADING SHOW</div>
+        <div className="text-sm mt-2">{error}</div>
         <button
           onClick={onBack}
-          className="btn-brutalist"
+          className="btn-brutalist mt-4"
         >
-          ← BACK
+          BACK TO SONG
         </button>
-        <h1>SHOW DETAILS</h1>
-        <div></div>
+      </div>
+    );
+  }
+
+  if (!showDetail) {
+    return (
+      <div className="text-center p-8">
+        <div className="text-lg font-bold">SHOW NOT FOUND</div>
+        <div className="text-sm mt-2">The requested show could not be loaded</div>
+        <button
+          onClick={onBack}
+          className="btn-brutalist mt-4"
+        >
+          BACK TO SONG
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Back Button */}
+      <button
+        onClick={onBack}
+        className="btn-brutalist"
+      >
+        ← BACK TO SONG
+      </button>
+
+      {/* Show Header */}
+      <div className="text-center">
+        <h1 className="text-3xl font-bold uppercase">SHOW DETAILS</h1>
+        <div className="text-lg mt-2">{formatDate(showDetail.show.date)}</div>
+        {showDetail.venue && (
+          <div className="text-lg mt-1">
+            {showDetail.venue.name}
+            {showDetail.venue.city && `, ${showDetail.venue.city}`}
+            {showDetail.venue.state && `, ${showDetail.venue.state}`}
+            {showDetail.venue.country && `, ${showDetail.venue.country}`}
+          </div>
+        )}
+        <div className="text-sm mt-2">
+          Era: {getEraLabel(showDetail.show.date)}
+        </div>
       </div>
 
-      {/* Show Info Header */}
+      {/* Show Statistics */}
       <div className="status-card">
-        <div className="status-card-header">
-          SHOW INFORMATION
+        <div className="status-card-header">SHOW INFORMATION</div>
+        <div className="status-row">
+          <span className="status-label">DATE:</span>
+          <span className="status-value">{formatDate(showDetail.show.date)}</span>
         </div>
-        <div className="p-4">
-          <div className="text-center mb-4">
-            <h2>{formatDate(show.date)}</h2>
-            <div className="text-xl">{venue?.name}</div>
-            <div className="text-lg">
-              {venue?.city}, {venue?.state} {venue?.country}
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-8 text-center">
-            <div>
-              <div className="text-2xl font-bold">{show.sourceCount}</div>
-              <div className="text-sm uppercase">RECORDINGS AVAILABLE</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold">{mockSetlist.length}</div>
-              <div className="text-sm uppercase">SONGS PLAYED</div>
-            </div>
-          </div>
-
-          {/* Era Context */}
-          <div className="mt-4 p-4 border-2 border-black">
-            <div className="font-bold text-lg mb-2">
-              {DateTime.fromISO(show.date).year} - {getEraLabel(show.date)?.label}
-            </div>
-            <div>{getEraLabel(show.date)?.description}</div>
-          </div>
+        <div className="status-row">
+          <span className="status-label">VENUE:</span>
+          <span className="status-value">
+            {showDetail.venue?.name || 'Unknown'}
+            {showDetail.venue?.city && `, ${showDetail.venue.city}`}
+          </span>
+        </div>
+        <div className="status-row">
+          <span className="status-label">RECORDINGS:</span>
+          <span className="status-value">{showDetail.recordings.length}</span>
+        </div>
+        <div className="status-row">
+          <span className="status-label">SOURCE COUNT:</span>
+          <span className="status-value">{showDetail.show.sourceCount}</span>
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex border-b-0">
-        <button
-          onClick={() => setActiveTab('info')}
-          className={`tab-brutalist ${
-            activeTab === 'info' ? 'active' : ''
-          }`}
-        >
-          INFO
-        </button>
-        <button
-          onClick={() => setActiveTab('setlist')}
-          className={`tab-brutalist ${
-            activeTab === 'setlist' ? 'active' : ''
-          }`}
-        >
-          SETLIST
-        </button>
-        <button
-          onClick={() => setActiveTab('recordings')}
-          className={`tab-brutalist ${
-            activeTab === 'recordings' ? 'active' : ''
-          }`}
-        >
-          RECORDINGS
-        </button>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'info' && (
-        <div className="space-y-4">
-          <div className="status-card">
-            <div className="status-card-header">
-              VENUE DETAILS
-            </div>
-            <div className="p-4">
-              <div className="grid grid-cols-2 gap-8">
-                <div>
-                  <div className="status-label">VENUE NAME</div>
-                  <div>{venue?.name}</div>
-                </div>
-                <div>
-                  <div className="status-label">CITY</div>
-                  <div>{venue?.city}</div>
-                </div>
-                <div>
-                  <div className="status-label">STATE</div>
-                  <div>{venue?.state}</div>
-                </div>
-                <div>
-                  <div className="status-label">COUNTRY</div>
-                  <div>{venue?.country}</div>
+      {/* Setlist */}
+      {showDetail.setlist.length > 0 && (
+        <div className="status-card">
+          <div className="status-card-header">SETLIST</div>
+          <div className="panel-content">
+            {showDetail.setlist.map((item, index) => (
+              <div key={index} className="mb-2 p-2 border-2 border-black">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className="font-bold">
+                      {item.setNumber === 1 ? 'Set 1' : 
+                       item.setNumber === 2 ? 'Set 2' : 
+                       item.setNumber === 3 ? 'Encore' : `Set ${item.setNumber}`}
+                    </span>
+                    <span className="ml-2">
+                      {item.positionInSet}. {item.songTitle}
+                    </span>
+                    {item.isOpener && <span className="ml-2 text-xs">(OPENER)</span>}
+                    {item.isCloser && <span className="ml-2 text-xs">(CLOSER)</span>}
+                    {item.isEncore && <span className="ml-2 text-xs">(ENCORE)</span>}
+                  </div>
+                  {item.segueToSongTitle && (
+                    <span className="text-sm">→ {item.segueToSongTitle}</span>
+                  )}
                 </div>
               </div>
-            </div>
-          </div>
-
-          <div className="status-card">
-            <div className="status-card-header">
-              SHOW METADATA
-            </div>
-            <div className="p-4">
-              <div className="grid grid-cols-2 gap-8">
-                <div>
-                  <div className="status-label">SHOW DATE</div>
-                  <div>{formatDate(show.date)}</div>
-                </div>
-                <div>
-                  <div className="status-label">RECORDINGS</div>
-                  <div>{show.sourceCount} sources available</div>
-                </div>
-                <div>
-                  <div className="status-label">ARCHIVE ID</div>
-                  <div>{show.archiveItemIds.join(', ')}</div>
-                </div>
-                <div>
-                  <div className="status-label">ERA</div>
-                  <div>{getEraLabel(show.date)?.label}</div>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       )}
 
-      {activeTab === 'setlist' && (
-        <div className="space-y-4">
-          <div className="panel-brutalist">
-            <div className="panel-header">
-              COMPLETE SETLIST
-            </div>
-            <div className="panel-content">
-              {mockSetlist.map((item, index) => (
-                <div key={index} className="list-item">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-8">
-                      <div className="w-16 text-center">
-                        <div className="font-bold text-sm uppercase">SET {item.setNumber}</div>
-                        <div className="text-xs">#{item.positionInSet}</div>
-                      </div>
-                      <div>
-                        <div className="list-item-title">{item.songTitle}</div>
-                        {item.segueToSongTitle && (
-                          <div className="list-item-meta">
-                            → {item.segueToSongTitle}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm">
-                        {item.positionInSet === 1 && item.setNumber === 1 && 'OPENER'}
-                        {item.positionInSet === mockSetlist.filter(s => s.setNumber === item.setNumber).length && 'CLOSER'}
-                      </div>
-                    </div>
+      {/* Recordings */}
+      {showDetail.recordings.length > 0 && (
+        <div className="status-card">
+          <div className="status-card-header">AVAILABLE RECORDINGS</div>
+          <div className="panel-content">
+            {showDetail.recordings.map((recording) => (
+              <div key={recording.id} className="mb-4 p-3 border-2 border-black">
+                <div className="grid grid-cols-2 gap-4 mb-2">
+                  <div>
+                    <span className="font-bold">Source:</span> {recording.sourceType || 'Unknown'}
+                  </div>
+                  <div>
+                    <span className="font-bold">Format:</span> {recording.format || 'Unknown'}
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'recordings' && (
-        <div className="space-y-4">
-          {recordings.map((recording) => (
-            <div key={recording.id} className="panel-brutalist">
-              <div className="panel-header">
-                {recording.sourceType} RECORDING - {recording.format}
-              </div>
-              <div className="panel-content">
-                <div className="mb-4">
-                  <div className="status-label mb-2">AVAILABLE TRACKS:</div>
-                  <div className="space-y-2">
+                
+                <div className="mb-2">
+                  <span className="font-bold">Tracks:</span>
+                  <div className="mt-1">
                     {Object.entries(recording.trackMap).map(([trackName, archiveId]) => (
-                      <div key={trackName} className="flex items-center justify-between p-2 border-2 border-black">
-                        <div>
-                          <div className="font-bold">{trackName}</div>
-                          <div className="text-sm">
-                            Duration: {formatDuration(recording.durationMap[trackName] || 0)}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => setSelectedTrack(trackName)}
-                          className="btn-brutalist"
-                        >
-                          PLAY
-                        </button>
+                      <div key={trackName} className="ml-4 text-sm">
+                        {trackName}
+                        {recording.durationMap[trackName] && (
+                          <span className="ml-2 text-xs">
+                            ({formatDuration(recording.durationMap[trackName])})
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {selectedTrack && (
-                  <div className="border-t-2 border-black pt-4">
-                    <div className="status-label mb-2">NOW PLAYING: {selectedTrack}</div>
-                    <AudioPlayer
-                      trackName={selectedTrack}
-                      duration={recording.durationMap[selectedTrack]}
-                    />
-                  </div>
-                )}
+                <div className="text-xs text-gray-600">
+                  Archive ID: {recording.archiveIdentifier}
+                </div>
               </div>
-            </div>
-          ))}
-
-          {recordings.length === 0 && (
-            <div className="panel-brutalist">
-              <div className="panel-header">
-                NO RECORDINGS
-              </div>
-              <div className="panel-content text-center">
-                <div className="text-lg font-bold mb-2">No recordings available</div>
-                <p>This show doesn't have any recordings in the archive yet.</p>
-              </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       )}
+
+      {/* Era Context */}
+      {showDetail.eraContext && (
+        <div className="status-card">
+          <div className="status-card-header">ERA CONTEXT</div>
+          <div className="panel-content">
+            <div className="mb-2">
+              <span className="font-bold">{showDetail.eraContext.year}:</span> {showDetail.eraContext.label}
+            </div>
+            <div className="text-sm">
+              {showDetail.eraContext.description}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Audio Player */}
+      <AudioPlayer
+        trackName={`${showDetail.venue?.name || 'Unknown Venue'} - ${formatDate(showDetail.show.date)}`}
+        showDate={showDetail.show.date}
+        archiveIdentifier={showDetail.show.archiveItemIds?.[0]}
+      />
     </div>
   );
 }
