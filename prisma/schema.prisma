@@ -1,0 +1,177 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Artist {
+  id               String   @id @default(cuid())
+  name             String   @unique
+  musicbrainzMbid  String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  songs    Song[]
+  shows    Show[]
+
+  @@map("artists")
+}
+
+model Venue {
+  id        String   @id @default(cuid())
+  name      String
+  city      String?
+  state     String?
+  country   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shows Show[]
+
+  @@unique([name, city])
+  @@map("venues")
+}
+
+model Show {
+  id               String   @id @default(cuid())
+  artistId         String
+  date             DateTime
+  venueId          String?
+  archiveItemIds   String[] // Array of Archive.org identifiers
+  sourceCount      Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  artist       Artist        @relation(fields: [artistId], references: [id])
+  venue        Venue?        @relation(fields: [venueId], references: [id])
+  performances Performance[]
+  recordings   Recording[]
+  
+  // SongRollup relations
+  debutShows SongRollup[] @relation("DebutShow")
+  lastShows  SongRollup[] @relation("LastShow")
+
+  @@unique([artistId, date])
+  @@index([date])
+  @@map("shows")
+}
+
+model Song {
+  id        String   @id @default(cuid())
+  artistId  String
+  title     String
+  altTitles String[] // Array of alternate titles
+  slug      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  artist       Artist        @relation(fields: [artistId], references: [id])
+  performances Performance[]
+  
+  // Segue relations
+  segueFrom Performance[] @relation("Segue")
+  
+  // SongRollup relation
+  rollup SongRollup?
+
+  @@unique([artistId, slug])
+  @@map("songs")
+}
+
+model Performance {
+  id             String   @id @default(cuid())
+  showId         String
+  songId         String
+  setNumber      Int?
+  positionInSet  Int?
+  segueToSongId  String?
+  isOpener       Boolean  @default(false)
+  isCloser       Boolean  @default(false)
+  isEncore       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  show        Show         @relation(fields: [showId], references: [id])
+  song        Song         @relation(fields: [songId], references: [id])
+  segueToSong Song?       @relation("Segue", fields: [segueToSongId], references: [id])
+  analyses    Analysis[]
+  
+  // SongRollup relations
+  longestPerformances SongRollup[] @relation("LongestPerformance")
+  shortestPerformances SongRollup[] @relation("ShortestPerformance")
+  highestBpmPerformances SongRollup[] @relation("HighestBpmPerformance")
+  lowestBpmPerformances SongRollup[] @relation("LowestBpmPerformance")
+
+  @@unique([showId, songId, setNumber, positionInSet])
+  @@index([songId, isOpener])
+  @@map("performances")
+}
+
+model Recording {
+  id                String   @id @default(cuid())
+  showId            String
+  archiveIdentifier String   @unique
+  sourceType        String?  // SBD, AUD, Matrix
+  format            String?  // FLAC, MP3, etc.
+  trackMap          Json     // Map of track names to archive identifiers
+  durationMap       Json     // Map of track names to durations in milliseconds
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  show      Show        @relation(fields: [showId], references: [id])
+  analyses  Analysis[]
+
+  @@map("recordings")
+}
+
+model Analysis {
+  id             String   @id @default(cuid())
+  performanceId  String
+  recordingId    String
+  durationMs     Int?     // Duration in milliseconds
+  bpm            Float?   // Beats per minute
+  bpmConfidence Float?   // Confidence score (0-1)
+  analyzedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  performance Performance @relation(fields: [performanceId], references: [id])
+  recording   Recording   @relation(fields: [recordingId], references: [id])
+
+  @@unique([performanceId, recordingId])
+  @@map("analyses")
+}
+
+model SongRollup {
+  id                        String   @id @default(cuid())
+  songId                    String   @unique
+  debutShowId               String
+  lastShowId                String
+  longestPerformanceId      String
+  shortestPerformanceId     String
+  highestBpmPerformanceId   String?
+  lowestBpmPerformanceId    String?
+  openerCount               Int      @default(0)
+  closerCount               Int      @default(0)
+  encoreCount               Int      @default(0)
+  avgDurationByYear         Json     // Map of year to average duration in milliseconds
+  computedAt                DateTime @default(now())
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  song                    Song         @relation(fields: [songId], references: [id])
+  debutShow               Show         @relation("DebutShow", fields: [debutShowId], references: [id])
+  lastShow                Show         @relation("LastShow", fields: [lastShowId], references: [id])
+  longestPerformance       Performance  @relation("LongestPerformance", fields: [longestPerformanceId], references: [id])
+  shortestPerformance      Performance  @relation("ShortestPerformance", fields: [shortestPerformanceId], references: [id])
+  highestBpmPerformance    Performance? @relation("HighestBpmPerformance", fields: [highestBpmPerformanceId], references: [id])
+  lowestBpmPerformance     Performance? @relation("LowestBpmPerformance", fields: [lowestBpmPerformanceId], references: [id])
+
+  @@map("song_rollups")
+}
